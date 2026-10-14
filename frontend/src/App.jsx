@@ -8,7 +8,7 @@ import ExpenseModal from './components/ExpenseModal';
 import DeleteModal from './components/DeleteModal';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('expenses'); // 'dashboard' | 'expenses'
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'expenses'
   const [summary, setSummary] = useState({
     totalAmount: 0,
     categoryTotals: { Food: 0, Travel: 0, Shopping: 0, Other: 0 }
