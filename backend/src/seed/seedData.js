@@ -10,33 +10,58 @@ const SAMPLE_DATA = [
   { description: 'Team lunch', amount: 1200, category: 'Food', date: '2026-10-09' }
 ];
 
-function seedDatabase(force = false) {
-  return new Promise((resolve, reject) => {
-    db.get('SELECT COUNT(*) as count FROM expenses', (err, row) => {
-      if (err) return reject(err);
+async function seedDatabase(force = false) {
+  if (db.type === 'mysql') {
+    try {
+      const [rows] = await db.pool.execute('SELECT COUNT(*) as count FROM expenses');
+      const count = Number(rows[0]?.count || 0);
 
-      if (row.count === 0 || force) {
-        db.serialize(() => {
-          if (force) {
-            db.run('DELETE FROM expenses');
-            db.run('DELETE FROM sqlite_sequence WHERE name="expenses"');
-          }
-          const stmt = db.prepare('INSERT INTO expenses (description, amount, category, date) VALUES (?, ?, ?, ?)');
-          for (const item of SAMPLE_DATA) {
-            stmt.run(item.description, item.amount, item.category, item.date);
-          }
-          stmt.finalize((finalizeErr) => {
-            if (finalizeErr) return reject(finalizeErr);
-            console.log('Sample expense data successfully seeded.');
-            resolve(true);
-          });
-        });
-      } else {
-        console.log(`Database already contains ${row.count} records. Skipping seed.`);
-        resolve(false);
+      if (count === 0 || force) {
+        if (force) {
+          await db.pool.execute('TRUNCATE TABLE expenses');
+        }
+        for (const item of SAMPLE_DATA) {
+          await db.pool.execute(
+            'INSERT INTO expenses (description, amount, category, date) VALUES (?, ?, ?, ?)',
+            [item.description, item.amount, item.category, item.date]
+          );
+        }
+        console.log('Sample expense data successfully seeded into MySQL.');
+        return true;
       }
+      return false;
+    } catch (err) {
+      console.error('MySQL Seed error:', err.message);
+      return false;
+    }
+  } else {
+    // SQLite
+    return new Promise((resolve, reject) => {
+      db.instance.get('SELECT COUNT(*) as count FROM expenses', (err, row) => {
+        if (err) return reject(err);
+
+        if (row.count === 0 || force) {
+          db.instance.serialize(() => {
+            if (force) {
+              db.instance.run('DELETE FROM expenses');
+              db.instance.run('DELETE FROM sqlite_sequence WHERE name="expenses"');
+            }
+            const stmt = db.instance.prepare('INSERT INTO expenses (description, amount, category, date) VALUES (?, ?, ?, ?)');
+            for (const item of SAMPLE_DATA) {
+              stmt.run(item.description, item.amount, item.category, item.date);
+            }
+            stmt.finalize((finalizeErr) => {
+              if (finalizeErr) return reject(finalizeErr);
+              console.log('Sample expense data successfully seeded into SQLite.');
+              resolve(true);
+            });
+          });
+        } else {
+          resolve(false);
+        }
+      });
     });
-  });
+  }
 }
 
 module.exports = {

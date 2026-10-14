@@ -11,9 +11,27 @@ import {
   Check,
   AlertCircle
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
 import './App.css';
 
 const CATEGORIES = ['Food', 'Travel', 'Shopping', 'Other'];
+
+const CATEGORY_COLORS = {
+  Food: '#f59e0b',
+  Travel: '#3b82f6',
+  Shopping: '#a855f7',
+  Other: '#64748b'
+};
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'expenses'
@@ -377,58 +395,95 @@ export default function App() {
             <div className="chart-card">
               <div className="chart-header">
                 <div className="chart-title">Spending trend</div>
-                <div className="chart-subtitle">Last 6 months (INR)</div>
+                <div className="chart-subtitle">Monthly total (INR)</div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'flex-end', height: '180px', gap: '20px', paddingBottom: '10px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', fontSize: '0.75rem', color: 'var(--text-light)' }}>
-                  <span>₹8,000</span>
-                  <span>₹6,000</span>
-                  <span>₹4,000</span>
-                  <span>₹0</span>
-                </div>
-                <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', height: '100%' }}>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>
-                      ₹{summary.totalAmount.toLocaleString()}
-                    </div>
-                    <div style={{
-                      width: '48px',
-                      height: `${Math.min(140, Math.max(10, (summary.totalAmount / 8000) * 140))}px`,
-                      backgroundColor: 'var(--accent-teal)',
-                      borderRadius: '6px 6px 0 0',
-                      transition: 'height 0.3s ease'
-                    }} />
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '8px' }}>Oct 26</div>
-                  </div>
-                </div>
+              <div style={{ width: '100%', height: 210 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={[
+                      { month: 'May', amount: 0 },
+                      { month: 'Jun', amount: 0 },
+                      { month: 'Jul', amount: 0 },
+                      { month: 'Aug', amount: 0 },
+                      { month: 'Sep', amount: 0 },
+                      { month: 'Oct 26', amount: summary.totalAmount }
+                    ]}
+                    margin={{ top: 10, right: 10, left: -15, bottom: 0 }}
+                  >
+                    <XAxis dataKey="month" tick={{ fill: '#64748b', fontSize: 11 }} tickLine={false} axisLine={false} />
+                    <YAxis
+                      tick={{ fill: '#64748b', fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(v) => `₹${Math.round(v / 1000)}k`}
+                    />
+                    <Tooltip
+                      formatter={(val) => [`₹${Number(val).toLocaleString()}`, 'Spent']}
+                      contentStyle={{ background: '#ffffff', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12 }}
+                    />
+                    <Bar dataKey="amount" fill="var(--accent-primary)" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
 
-            {/* Category Breakdown Donut / Summary */}
+            {/* Category Breakdown Donut PieChart */}
             <div className="chart-card">
               <div className="chart-header">
                 <div className="chart-title">Category breakdown</div>
                 <div className="chart-subtitle">This month</div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', height: '180px' }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Largest</div>
-                  <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--accent-teal)' }}>
-                    {largestCategory.name}
-                  </div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    ₹{largestCategory.amount.toLocaleString()}
+              <div style={{ display: 'flex', alignItems: 'center', height: 210 }}>
+                <div style={{ width: '50%', height: '100%', position: 'relative' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={sortedCategories.filter(c => c.amount > 0).map(c => ({ name: c.name, value: c.amount }))}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={70}
+                        paddingAngle={4}
+                        dataKey="value"
+                        startAngle={90}
+                        endAngle={-270}
+                        stroke="none"
+                      >
+                        {sortedCategories.filter(c => c.amount > 0).map((entry) => (
+                          <Cell key={`cell-${entry.name}`} fill={CATEGORY_COLORS[entry.name] || '#64748b'} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(val) => [`₹${Number(val).toLocaleString()}`, 'Amount']}
+                        contentStyle={{ background: '#ffffff', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12 }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    textAlign: 'center',
+                    pointerEvents: 'none'
+                  }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-light)', fontWeight: 600 }}>Largest</div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                      {largestCategory.name}
+                    </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.85rem' }}>
+
+                <div style={{ width: '50%', display: 'flex', flexDirection: 'column', gap: '10px', paddingLeft: '12px' }}>
                   {sortedCategories.filter(c => c.amount > 0).map((c) => (
-                    <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span className={`cat-progress-fill ${c.name}`} style={{ width: '10px', height: '10px', borderRadius: '2px', display: 'inline-block' }} />
-                      <span>{c.name} ({c.percentage}%)</span>
+                    <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
+                      <span style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: CATEGORY_COLORS[c.name] || '#64748b' }} />
+                      <span style={{ fontWeight: 500, color: 'var(--text-main)' }}>{c.name}</span>
+                      <span style={{ color: 'var(--text-muted)', marginLeft: 'auto', fontSize: '0.82rem' }}>{c.percentage}%</span>
                     </div>
                   ))}
                   {summary.totalAmount === 0 && (
-                    <div style={{ color: 'var(--text-muted)' }}>No expense data yet</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No expense records</div>
                   )}
                 </div>
               </div>
