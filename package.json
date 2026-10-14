@@ -1,0 +1,25 @@
+{
+  "name": "expense-tracker-monorepo",
+  "version": "1.0.0",
+  "description": "Fullstack Expense Tracker Practical Assignment",
+  "private": true,
+  "scripts": {
+    "start:backend": "npm --prefix backend start",
+    "start:frontend": "npm --prefix frontend run dev",
+    "build:frontend": "npm --prefix frontend run build",
+    "build": "npm --prefix frontend run build",
+    "test:backend": "npm --prefix backend test",
+    "test": "npm --prefix backend test"
+  },
+  "keywords": [
+    "expense-tracker",
+    "fullstack",
+    "nodejs",
+    "express",
+    "react",
+    "sqlite",
+    "mysql"
+  ],
+  "author": "Tisha",
+  "license": "ISC"
+}
