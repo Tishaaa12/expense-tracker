@@ -7,6 +7,20 @@
   },
   "item": [
     {
+      "name": "Reset Sample Data (run first)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/api/expenses/reset-seed",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "expenses", "reset-seed"]
+        }
+      }
+    },
+    {
       "name": "Output 1 - Summary",
       "request": {
         "method": "GET",
@@ -76,7 +90,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"amount\": 600\n}"
+          "raw": "{\n  \"description\": \"Uber ride\",\n  \"amount\": 600,\n  \"category\": \"Travel\",\n  \"date\": \"2026-10-09\"\n}"
         },
         "url": {
           "raw": "http://localhost:5000/api/expenses/2",
@@ -230,16 +244,16 @@
       }
     },
     {
-      "name": "Utility - Reset Sample Data",
+      "name": "Get Non-Existent Expense (404 Error)",
       "request": {
-        "method": "POST",
+        "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:5000/api/expenses/reset-seed",
+          "raw": "http://localhost:5000/api/expenses/999",
           "protocol": "http",
           "host": ["localhost"],
           "port": "5000",
-          "path": ["api", "expenses", "reset-seed"]
+          "path": ["api", "expenses", "999"]
         }
       }
     }
