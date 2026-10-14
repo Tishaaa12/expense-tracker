@@ -1,40 +1,14 @@
 import { useState, useEffect } from 'react';
-import {
-  Wallet,
-  Plus,
-  RotateCcw,
-  Pencil,
-  Trash2,
-  X,
-  ChevronLeft,
-  ChevronRight,
-  Check,
-  AlertCircle
-} from 'lucide-react';
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  PieChart,
-  Pie,
-  Cell
-} from 'recharts';
-import './App.css';
+import { Toaster, toast } from 'sonner';
 
-const CATEGORIES = ['Food', 'Travel', 'Shopping', 'Other'];
-
-const CATEGORY_COLORS = {
-  Food: '#f59e0b',
-  Travel: '#3b82f6',
-  Shopping: '#a855f7',
-  Other: '#64748b'
-};
+import Navbar from './components/Navbar';
+import DashboardView from './components/DashboardView';
+import ExpensesTableView from './components/ExpensesTableView';
+import ExpenseModal from './components/ExpenseModal';
+import DeleteModal from './components/DeleteModal';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'expenses'
+  const [activeTab, setActiveTab] = useState('expenses'); // 'dashboard' | 'expenses'
   const [summary, setSummary] = useState({
     totalAmount: 0,
     categoryTotals: { Food: 0, Travel: 0, Shopping: 0, Other: 0 }
@@ -42,7 +16,6 @@ export default function App() {
 
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [banner, setBanner] = useState({ message: '', type: 'success' }); // type: 'success' | 'error'
 
   // Filters & sorting
   const [search, setSearch] = useState('');
@@ -52,7 +25,7 @@ export default function App() {
   const [sortBy, setSortBy] = useState('date');
   const [order, setOrder] = useState('desc');
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(5);
+  const [limit, setLimit] = useState(10);
   const [pagination, setPagination] = useState({
     totalRecords: 0,
     totalPages: 1,
@@ -75,13 +48,6 @@ export default function App() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingExpense, setDeletingExpense] = useState(null);
 
-  const showNotification = (message, type = 'success') => {
-    setBanner({ message, type });
-    setTimeout(() => {
-      setBanner({ message: '', type: 'success' });
-    }, 4500);
-  };
-
   // Fetch summary from backend GET /api/expenses/summary
   const fetchSummary = async () => {
     try {
@@ -91,10 +57,10 @@ export default function App() {
         setSummary(data);
       } else {
         const errData = await res.json();
-        showNotification(errData.error || 'Failed to fetch summary from server.', 'error');
+        toast.error(errData.error || 'Failed to fetch summary from server.');
       }
-    } catch (err) {
-      showNotification('Cannot connect to backend server. Make sure port 5000 is running.', 'error');
+    } catch {
+      toast.error('Cannot connect to backend server. Make sure port 5000 is running.');
     }
   };
 
@@ -123,10 +89,10 @@ export default function App() {
         }
       } else {
         const errData = await res.json();
-        showNotification(errData.error || 'Failed to fetch expenses.', 'error');
+        toast.error(errData.error || 'Failed to fetch expenses.');
       }
-    } catch (err) {
-      showNotification('Error fetching expenses from backend.', 'error');
+    } catch {
+      toast.error('Error fetching expenses from backend.');
     } finally {
       setLoading(false);
     }
@@ -166,19 +132,19 @@ export default function App() {
     setIsModalOpen(true);
   };
 
-  // Real backend call: POST /api/expenses or PUT /api/expenses/:id
   const handleSaveExpense = async (e) => {
     e.preventDefault();
     setFormError('');
 
-    // Pre-validation matching Output 5
     const amt = Number(formData.amount);
     if (formData.amount === '' || isNaN(amt)) {
       setFormError('Please enter a valid amount.');
+      toast.error('Please enter a valid amount.');
       return;
     }
     if (amt <= 0) {
       setFormError('Amount must be a positive number');
+      toast.error('Amount must be a positive number');
       return;
     }
 
@@ -199,614 +165,131 @@ export default function App() {
 
       const data = await res.json();
       if (!res.ok) {
-        // Displays backend validation errors in the popup box
         setFormError(data.error || 'Failed to save expense');
+        toast.error(data.error || 'Failed to save expense');
         return;
       }
 
       setIsModalOpen(false);
-      showNotification(
-        modalMode === 'create'
-          ? `"${formData.description}" created successfully.`
-          : `"${formData.description}" updated successfully.`,
-        'success'
-      );
+      const cleanDesc = formData.description.trim();
+      if (modalMode === 'create') {
+        toast.success('Expense Created', {
+          description: `Added "${cleanDesc}" for ₹${amt.toLocaleString()}`
+        });
+      } else {
+        toast.success('Expense Updated', {
+          description: `Updated "${cleanDesc}" to ₹${amt.toLocaleString()}`
+        });
+      }
       fetchExpenses();
       fetchSummary();
-    } catch (err) {
+    } catch {
       setFormError('Could not reach backend API. Please check server.');
+      toast.error('Could not reach backend API. Please check server.');
     }
   };
 
-  // Open custom confirmation popup modal
   const handleOpenDelete = (item) => {
     setDeletingExpense(item);
     setIsDeleteModalOpen(true);
   };
 
-  // Real backend call: DELETE /api/expenses/:id
   const handleConfirmDelete = async () => {
     if (!deletingExpense) return;
     try {
       const res = await fetch(`/api/expenses/${deletingExpense.id}`, { method: 'DELETE' });
       if (res.ok) {
-        showNotification(`"${deletingExpense.description}" deleted successfully.`, 'success');
+        toast.error('Expense Deleted', {
+          description: `Removed "${deletingExpense.description.trim()}" (₹${deletingExpense.amount.toLocaleString()})`
+        });
         setIsDeleteModalOpen(false);
         setDeletingExpense(null);
         fetchExpenses();
         fetchSummary();
       } else {
         const data = await res.json();
-        showNotification(data.error || 'Failed to delete expense.', 'error');
+        toast.error(data.error || 'Failed to delete expense.');
         setIsDeleteModalOpen(false);
       }
-    } catch (err) {
-      showNotification('Network error while deleting expense.', 'error');
+    } catch {
+      toast.error('Network error while deleting expense.');
       setIsDeleteModalOpen(false);
     }
   };
 
-  // Reset to initial assignment dataset: POST /api/expenses/reset-seed
-  const handleResetSampleData = async () => {
-    try {
-      const res = await fetch('/api/expenses/reset-seed', { method: 'POST' });
-      if (res.ok) {
-        showNotification('Database reset to initial 5 sample records.', 'success');
-        fetchExpenses();
-        fetchSummary();
-      } else {
-        showNotification('Failed to reset sample data.', 'error');
-      }
-    } catch (err) {
-      showNotification('Network error while resetting data.', 'error');
-    }
-  };
-
-  const formatDateDisplay = (dStr) => {
-    try {
-      const [y, m, d] = dStr.split('-');
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return `${d} ${months[parseInt(m, 10) - 1]} ${y}`;
-    } catch {
-      return dStr;
-    }
-  };
-
-  // Dynamic calculations for category distribution and largest category
-  const sortedCategories = [...CATEGORIES]
-    .map((c) => ({
-      name: c,
-      amount: summary.categoryTotals[c] || 0,
-      percentage: summary.totalAmount > 0 ? (((summary.categoryTotals[c] || 0) / summary.totalAmount) * 100).toFixed(1) : '0.0'
-    }))
-    .sort((a, b) => b.amount - a.amount);
-
-  const largestCategory = sortedCategories[0] || { name: 'None', amount: 0 };
-
   return (
-    <div className="app-container">
-      {/* Top Navbar */}
-      <header className="app-navbar">
-        <div className="nav-left">
-          <div className="brand-badge">
-            <div className="brand-icon-box">
-              <Wallet size={20} />
-            </div>
-            <span>AI Expense Tracker</span>
-          </div>
+    <div className="h-screen w-screen overflow-hidden bg-slate-50 flex flex-col antialiased font-sans text-slate-900">
+      {/* Toast Notification Container */}
+      <Toaster
+        position="bottom-right"
+        toastOptions={{
+          style: {
+            background: '#ffffff',
+            color: '#0f172a',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04)',
+            borderRadius: '12px',
+            fontSize: '13px',
+            padding: '12px 16px'
+          }
+        }}
+      />
 
-          <nav className="nav-links">
-            <button
-              className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
-              onClick={() => setActiveTab('dashboard')}
-            >
-              Dashboard
-            </button>
-            <button
-              className={`nav-item ${activeTab === 'expenses' ? 'active' : ''}`}
-              onClick={() => setActiveTab('expenses')}
-            >
-              Expenses
-            </button>
-          </nav>
-        </div>
+      {/* Main Container */}
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-3 flex flex-col h-full overflow-hidden">
+        {/* Navbar */}
+        <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-        <div className="nav-right">
-          <button
-            className="btn-secondary"
-            onClick={handleResetSampleData}
-            title="Reset to initial 5 records"
-          >
-            <RotateCcw size={15} /> Reset Seed
-          </button>
-        </div>
-      </header>
+        {/* View Switching */}
+        {activeTab === 'dashboard' ? (
+          <DashboardView summary={summary} onAddExpense={handleOpenCreate} />
+        ) : (
+          <ExpensesTableView
+            expenses={expenses}
+            loading={loading}
+            pagination={pagination}
+            search={search}
+            setSearch={setSearch}
+            category={category}
+            setCategory={setCategory}
+            startDate={startDate}
+            setStartDate={setStartDate}
+            endDate={endDate}
+            setEndDate={setEndDate}
+            sortBy={sortBy}
+            order={order}
+            setSortBy={setSortBy}
+            setOrder={setOrder}
+            page={page}
+            setPage={setPage}
+            onAddExpense={handleOpenCreate}
+            onEditExpense={handleOpenEdit}
+            onDeleteExpense={handleOpenDelete}
+          />
+        )}
 
-      {/* GLOBAL NOTIFICATION BANNER (Success & Error feedback) */}
-      {banner.message && (
-        <div className={`feedback-banner ${banner.type}`}>
-          {banner.type === 'success' ? <Check size={18} /> : <AlertCircle size={18} />}
-          <span>{banner.message}</span>
-        </div>
-      )}
+        {/* Create / Edit Popup Modal */}
+        <ExpenseModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          modalMode={modalMode}
+          formData={formData}
+          setFormData={setFormData}
+          formError={formError}
+          onSubmit={handleSaveExpense}
+        />
 
-      {/* SCREEN 1: FINANCIAL OVERVIEW / DASHBOARD */}
-      {activeTab === 'dashboard' && (
-        <div>
-          <div className="page-header-row">
-            <div>
-              <h1 className="page-title">Financial Overview</h1>
-              <p className="page-subtitle">Your spending across all categories, in INR.</p>
-            </div>
-
-            <div className="header-actions">
-              <div className="month-pill-group">
-                <button className="month-pill">Sep</button>
-                <button className="month-pill active">Oct 2026</button>
-                <button className="month-pill">Nov</button>
-              </div>
-
-              <button className="btn-teal" onClick={handleOpenCreate}>
-                <Plus size={18} /> Add expense
-              </button>
-            </div>
-          </div>
-
-          {/* Top Metric Cards */}
-          <div className="overview-metrics-grid">
-            <div className="metric-card">
-              <div className="metric-card-label">TOTAL EXPENSES (OVERALL)</div>
-              <div className="metric-card-amount">₹{summary.totalAmount.toLocaleString()}</div>
-              <div className="metric-card-subtext">Overall total of all expenses</div>
-            </div>
-
-            <div className="metric-card">
-              <div className="metric-card-label">TOTAL RECORDS</div>
-              <div className="metric-card-amount">{pagination.totalRecords}</div>
-              <div className="metric-card-subtext">Total persisted records in database</div>
-            </div>
-          </div>
-
-          {/* Totals by category (Dynamic from GET /api/expenses/summary) */}
-          <h2 className="category-section-title">Totals by category</h2>
-          <div className="category-cards-grid">
-            {CATEGORIES.map((cat) => {
-              const amount = summary.categoryTotals[cat] || 0;
-              const percentage = summary.totalAmount > 0 ? ((amount / summary.totalAmount) * 100).toFixed(1) : 0;
-              return (
-                <div key={cat} className="cat-overview-card">
-                  <div className={`cat-pill ${cat}`}>{cat}</div>
-                  <div className="cat-overview-amount">₹{amount.toLocaleString()}</div>
-                  <div className="cat-progress-track">
-                    <div
-                      className={`cat-progress-fill ${cat}`}
-                      style={{ width: `${percentage}%` }}
-                    />
-                  </div>
-                  <div className="cat-percentage-label">{percentage}% of total</div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Dynamic Charts Row */}
-          <div className="charts-grid">
-            {/* Spending Trend Bar Chart */}
-            <div className="chart-card">
-              <div className="chart-header">
-                <div className="chart-title">Spending trend</div>
-                <div className="chart-subtitle">Monthly total (INR)</div>
-              </div>
-              <div style={{ width: '100%', height: 210 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={[
-                      { month: 'May', amount: 0 },
-                      { month: 'Jun', amount: 0 },
-                      { month: 'Jul', amount: 0 },
-                      { month: 'Aug', amount: 0 },
-                      { month: 'Sep', amount: 0 },
-                      { month: 'Oct 26', amount: summary.totalAmount }
-                    ]}
-                    margin={{ top: 10, right: 10, left: -15, bottom: 0 }}
-                  >
-                    <XAxis dataKey="month" tick={{ fill: '#64748b', fontSize: 11 }} tickLine={false} axisLine={false} />
-                    <YAxis
-                      tick={{ fill: '#64748b', fontSize: 11 }}
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(v) => `₹${Math.round(v / 1000)}k`}
-                    />
-                    <Tooltip
-                      formatter={(val) => [`₹${Number(val).toLocaleString()}`, 'Spent']}
-                      contentStyle={{ background: '#ffffff', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12 }}
-                    />
-                    <Bar dataKey="amount" fill="var(--accent-primary)" radius={[6, 6, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Category Breakdown Donut PieChart */}
-            <div className="chart-card">
-              <div className="chart-header">
-                <div className="chart-title">Category breakdown</div>
-                <div className="chart-subtitle">This month</div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', height: 210 }}>
-                <div style={{ width: '50%', height: '100%', position: 'relative' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={sortedCategories.filter(c => c.amount > 0).map(c => ({ name: c.name, value: c.amount }))}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={70}
-                        paddingAngle={4}
-                        dataKey="value"
-                        startAngle={90}
-                        endAngle={-270}
-                        stroke="none"
-                      >
-                        {sortedCategories.filter(c => c.amount > 0).map((entry) => (
-                          <Cell key={`cell-${entry.name}`} fill={CATEGORY_COLORS[entry.name] || '#64748b'} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        formatter={(val) => [`₹${Number(val).toLocaleString()}`, 'Amount']}
-                        contentStyle={{ background: '#ffffff', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12 }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    textAlign: 'center',
-                    pointerEvents: 'none'
-                  }}>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-light)', fontWeight: 600 }}>Largest</div>
-                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                      {largestCategory.name}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ width: '50%', display: 'flex', flexDirection: 'column', gap: '10px', paddingLeft: '12px' }}>
-                  {sortedCategories.filter(c => c.amount > 0).map((c) => (
-                    <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
-                      <span style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: CATEGORY_COLORS[c.name] || '#64748b' }} />
-                      <span style={{ fontWeight: 500, color: 'var(--text-main)' }}>{c.name}</span>
-                      <span style={{ color: 'var(--text-muted)', marginLeft: 'auto', fontSize: '0.82rem' }}>{c.percentage}%</span>
-                    </div>
-                  ))}
-                  {summary.totalAmount === 0 && (
-                    <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No expense records</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* SCREEN 2: EXPENSES TABLE & CONTROLS */}
-      {activeTab === 'expenses' && (
-        <div>
-          <div className="page-header-row">
-            <div>
-              <h1 className="page-title">Expenses</h1>
-              <p className="page-subtitle">Search, filter and manage your expenses.</p>
-            </div>
-            <button className="btn-teal" onClick={handleOpenCreate}>
-              <Plus size={18} /> Add expense
-            </button>
-          </div>
-
-          {/* Filter Bar */}
-          <div className="filter-row">
-            <div className="filter-field" style={{ flex: '1 1 240px' }}>
-              <label className="filter-label">Search description</label>
-              <input
-                type="text"
-                className="input-box"
-                placeholder="Search by description"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-              />
-            </div>
-
-            <div className="filter-field" style={{ width: '170px' }}>
-              <label className="filter-label">Category</label>
-              <select
-                className="input-box"
-                value={category}
-                onChange={(e) => {
-                  setCategory(e.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="">All categories</option>
-                {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="filter-field">
-              <label className="filter-label">From</label>
-              <input
-                type="date"
-                className="input-box"
-                value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value);
-                  setPage(1);
-                }}
-              />
-            </div>
-
-            <div className="filter-field">
-              <label className="filter-label">To</label>
-              <input
-                type="date"
-                className="input-box"
-                value={endDate}
-                onChange={(e) => {
-                  setEndDate(e.target.value);
-                  setPage(1);
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Sort By Field */}
-          <div style={{ marginBottom: '20px' }}>
-            <div className="filter-field" style={{ width: '220px' }}>
-              <label className="filter-label">Sort by</label>
-              <select
-                className="input-box"
-                value={`${sortBy}:${order}`}
-                onChange={(e) => {
-                  const [s, o] = e.target.value.split(':');
-                  setSortBy(s);
-                  setOrder(o);
-                }}
-              >
-                <option value="date:desc">Date: newest first</option>
-                <option value="date:asc">Date: oldest first</option>
-                <option value="amount:desc">Amount: highest first</option>
-                <option value="amount:asc">Amount: lowest first</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Table Card */}
-          <div className="table-card">
-            <table className="styled-table">
-              <thead>
-                <tr>
-                  <th>Description</th>
-                  <th>Category</th>
-                  <th>Date</th>
-                  <th>Amount</th>
-                  <th style={{ textAlign: 'center', width: '110px' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan="5" style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>
-                      Loading expenses...
-                    </td>
-                  </tr>
-                ) : expenses.length === 0 ? (
-                  <tr>
-                    <td colSpan="5" style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>
-                      No expenses match your filters.
-                    </td>
-                  </tr>
-                ) : (
-                  expenses.map((item) => (
-                    <tr key={item.id}>
-                      <td style={{ fontWeight: 500 }}>{item.description}</td>
-                      <td>
-                        <span className={`cat-pill ${item.category}`}>{item.category}</span>
-                      </td>
-                      <td style={{ color: 'var(--text-muted)' }}>{formatDateDisplay(item.date)}</td>
-                      <td className="table-amount">₹{item.amount.toLocaleString()}</td>
-                      <td style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '14px' }}>
-                          <button
-                            type="button"
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-                            title="Edit"
-                            onClick={() => handleOpenEdit(item)}
-                          >
-                            <Pencil size={17} />
-                          </button>
-                          <button
-                            type="button"
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#e11d48' }}
-                            title="Delete"
-                            onClick={() => handleOpenDelete(item)}
-                          >
-                            <Trash2 size={17} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-
-            {/* Pagination */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid var(--border-subtle)', fontSize: '0.88rem', color: 'var(--text-muted)' }}>
-              <div>
-                Showing {expenses.length} of {pagination.totalRecords}
-              </div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={page <= 1}
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                >
-                  <ChevronLeft size={16} /> Prev
-                </button>
-                <span>{pagination.currentPage || 1} / {pagination.totalPages || 1}</span>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={page >= pagination.totalPages}
-                  onClick={() => setPage(p => p + 1)}
-                >
-                  Next <ChevronRight size={16} />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CREATE / EDIT POPUP MODAL */}
-      {isModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-top">
-              <h3 className="modal-title">{modalMode === 'create' ? 'Add Expense' : 'Edit Expense'}</h3>
-              <button
-                type="button"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-                onClick={() => setIsModalOpen(false)}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Inline Error Box in Popup Modal */}
-            {formError && (
-              <div className="modal-error-box">
-                <AlertCircle size={18} />
-                <span>{formError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSaveExpense}>
-              <div style={{ marginBottom: '16px' }}>
-                <label className="filter-label" style={{ marginBottom: '6px', display: 'block' }}>Description</label>
-                <input
-                  type="text"
-                  className="input-box"
-                  style={{ width: '100%' }}
-                  placeholder="e.g. Dinner with client"
-                  required
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                />
-              </div>
-
-              <div style={{ marginBottom: '16px' }}>
-                <label className="filter-label" style={{ marginBottom: '6px', display: 'block' }}>Amount (₹)</label>
-                <input
-                  type="number"
-                  step="any"
-                  className="input-box"
-                  style={{ width: '100%' }}
-                  placeholder="e.g. 1500"
-                  required
-                  value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                />
-              </div>
-
-              <div style={{ marginBottom: '16px' }}>
-                <label className="filter-label" style={{ marginBottom: '6px', display: 'block' }}>Category</label>
-                <select
-                  className="input-box"
-                  style={{ width: '100%' }}
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                >
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ marginBottom: '20px' }}>
-                <label className="filter-label" style={{ marginBottom: '6px', display: 'block' }}>Date</label>
-                <input
-                  type="date"
-                  className="input-box"
-                  style={{ width: '100%' }}
-                  required
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn-teal">
-                  {modalMode === 'create' ? 'Add Expense' : 'Save Changes'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* DELETE CONFIRMATION POPUP MODAL */}
-      {isDeleteModalOpen && deletingExpense && (
-        <div className="modal-overlay" onClick={() => setIsDeleteModalOpen(false)}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-top">
-              <h3 className="modal-title" style={{ color: '#e11d48' }}>Delete Expense</h3>
-              <button
-                type="button"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-                onClick={() => setIsDeleteModalOpen(false)}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginBottom: '20px', lineHeight: 1.5 }}>
-              Are you sure you want to delete <strong>"{deletingExpense.description}"</strong> (₹{deletingExpense.amount.toLocaleString()})?
-              This action cannot be undone and will update summary totals.
-            </p>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => {
-                  setIsDeleteModalOpen(false);
-                  setDeletingExpense(null);
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-danger"
-                onClick={handleConfirmDelete}
-              >
-                Yes, Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        {/* Delete Confirmation Popup Modal */}
+        <DeleteModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setDeletingExpense(null);
+          }}
+          deletingExpense={deletingExpense}
+          onConfirm={handleConfirmDelete}
+        />
+      </div>
     </div>
   );
 }

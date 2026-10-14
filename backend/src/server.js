@@ -26,16 +26,6 @@ app.get('/api/health', (req, res) => {
 // Mount Expenses API
 app.use('/api/expenses', expenseRoutes);
 
-// Reset seed endpoint for convenience during evaluations/testing
-app.post('/api/expenses/reset-seed', async (req, res) => {
-  try {
-    await seedDatabase(true);
-    res.json({ message: 'Database reset to initial sample data successfully' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to reset seed data' });
-  }
-});
-
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: `Route not found: ${req.method} ${req.originalUrl}` });

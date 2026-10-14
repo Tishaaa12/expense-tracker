@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const Expense = require('../models/Expense');
 
 const ALLOWED_CATEGORIES = ['Food', 'Travel', 'Shopping', 'Other'];
 
@@ -11,7 +12,23 @@ const SAMPLE_DATA = [
 ];
 
 async function seedDatabase(force = false) {
-  if (db.type === 'mysql') {
+  if (db.type === 'mongodb') {
+    try {
+      const count = await Expense.countDocuments();
+      if (count === 0 || force) {
+        if (force) {
+          await Expense.deleteMany({});
+        }
+        await Expense.insertMany(SAMPLE_DATA);
+        console.log('Sample expense data successfully seeded into MongoDB.');
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('MongoDB Seed error:', err.message);
+      return false;
+    }
+  } else if (db.type === 'mysql') {
     try {
       const [rows] = await db.pool.execute('SELECT COUNT(*) as count FROM expenses');
       const count = Number(rows[0]?.count || 0);
@@ -65,7 +82,7 @@ async function seedDatabase(force = false) {
 }
 
 module.exports = {
-  ALLOWED_CATEGORIES,
+  seedDatabase,
   SAMPLE_DATA,
-  seedDatabase
+  ALLOWED_CATEGORIES
 };

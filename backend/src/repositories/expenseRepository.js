@@ -1,9 +1,18 @@
 const db = require('../config/database');
+const Expense = require('../models/Expense');
 
 const ExpenseRepository = {
   // CREATE
   create: async (expense) => {
-    if (db.type === 'mysql') {
+    if (db.type === 'mongodb') {
+      const doc = await Expense.create({
+        description: expense.description,
+        amount: expense.amount,
+        category: expense.category,
+        date: expense.date
+      });
+      return doc.toJSON();
+    } else if (db.type === 'mysql') {
       const sql = 'INSERT INTO expenses (description, amount, category, date) VALUES (?, ?, ?, ?)';
       const [result] = await db.pool.execute(sql, [expense.description, expense.amount, expense.category, expense.date]);
       return ExpenseRepository.findById(result.insertId);
@@ -20,7 +29,10 @@ const ExpenseRepository = {
 
   // FIND BY ID
   findById: async (id) => {
-    if (db.type === 'mysql') {
+    if (db.type === 'mongodb') {
+      const doc = await Expense.findById(id);
+      return doc ? doc.toJSON() : null;
+    } else if (db.type === 'mysql') {
       const sql = 'SELECT * FROM expenses WHERE id = ?';
       const [rows] = await db.pool.execute(sql, [id]);
       if (!rows || rows.length === 0) return null;
@@ -39,7 +51,19 @@ const ExpenseRepository = {
 
   // UPDATE
   update: async (id, updates) => {
-    if (db.type === 'mysql') {
+    if (db.type === 'mongodb') {
+      const doc = await Expense.findByIdAndUpdate(
+        id,
+        {
+          description: updates.description,
+          amount: updates.amount,
+          category: updates.category,
+          date: updates.date
+        },
+        { new: true, runValidators: true }
+      );
+      return doc ? doc.toJSON() : null;
+    } else if (db.type === 'mysql') {
       const sql = `
         UPDATE expenses
         SET description = ?, amount = ?, category = ?, date = ?
@@ -70,7 +94,10 @@ const ExpenseRepository = {
 
   // DELETE
   delete: async (id) => {
-    if (db.type === 'mysql') {
+    if (db.type === 'mongodb') {
+      const doc = await Expense.findByIdAndDelete(id);
+      return !!doc;
+    } else if (db.type === 'mysql') {
       const sql = 'DELETE FROM expenses WHERE id = ?';
       const [result] = await db.pool.execute(sql, [id]);
       return result.affectedRows > 0;
@@ -85,19 +112,71 @@ const ExpenseRepository = {
     }
   },
 
-  // FIND (with search, category, date filters, sort, pagination)
-  find: async ({ search, category, startDate, endDate, sortBy = 'date', order = 'desc', page, limit }) => {
-    let conditions = [];
-    let params = [];
+  // FIND WITH SEARCH, FILTERS, SORT & PAGINATION
+  find: async ({ search, category, startDate, endDate, sortBy, order, page, limit }) => {
+    if (db.type === 'mongodb') {
+      const query = {};
+      if (search) {
+        query.description = { $regex: search, $options: 'i' };
+      }
+      if (category) {
+        query.category = category;
+      }
+      if (startDate || endDate) {
+        query.date = {};
+        if (startDate) query.date.$gte = startDate;
+        if (endDate) query.date.$lte = endDate;
+      }
 
-    if (search && search.trim() !== '') {
-      conditions.push('LOWER(description) LIKE ?');
-      params.push(`%${search.trim().toLowerCase()}%`);
+      const sortField = sortBy === 'amount' ? 'amount' : 'date';
+      const sortOrder = order && order.toLowerCase() === 'asc' ? 1 : -1;
+      const sortObj = { [sortField]: sortOrder, _id: -1 };
+
+      const totalRecords = await Expense.countDocuments(query);
+
+      let q = Expense.find(query).sort(sortObj);
+
+      if (limit !== undefined && limit !== null) {
+        const numLimit = parseInt(limit, 10);
+        const numPage = page ? parseInt(page, 10) : 1;
+        const skip = (numPage - 1) * numLimit;
+        q = q.skip(skip).limit(numLimit);
+
+        const docs = await q;
+        const totalPages = Math.ceil(totalRecords / numLimit) || 1;
+
+        return {
+          expenses: docs.map(d => d.toJSON()),
+          pagination: {
+            totalRecords,
+            totalPages,
+            currentPage: numPage,
+            limit: numLimit,
+            hasNextPage: numPage < totalPages,
+            hasPrevPage: numPage > 1
+          }
+        };
+      } else {
+        const docs = await q;
+        return {
+          expenses: docs.map(d => d.toJSON()),
+          totalRecords
+        };
+      }
     }
 
-    if (category && category.trim() !== '') {
+    // SQL based (MySQL & SQLite)
+    const conditions = [];
+    const params = [];
+
+    if (search) {
+      conditions.push('description LIKE ?');
+      params.push(`%${search}%`);
+    }
+
+    if (category) {
       conditions.push('category = ?');
-      params.push(category.trim());
+      params.push(category);
     }
 
     if (startDate) {
@@ -111,21 +190,13 @@ const ExpenseRepository = {
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-
-    const allowedSortFields = {
-      amount: 'amount',
-      date: 'date',
-      id: 'id',
-      description: 'description',
-      category: 'category'
-    };
-    const sortField = allowedSortFields[sortBy] || 'date';
-    const sortOrder = order.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+    const sortField = sortBy === 'amount' ? 'amount' : 'date';
+    const sortOrder = order && order.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
 
     if (db.type === 'mysql') {
       const countSql = `SELECT COUNT(*) as total FROM expenses ${whereClause}`;
       const [countRows] = await db.pool.execute(countSql, params);
-      const totalRecords = countRows[0] ? Number(countRows[0].total) : 0;
+      const totalRecords = countRows[0].total;
 
       let querySql = `SELECT * FROM expenses ${whereClause} ORDER BY ${sortField} ${sortOrder}, id DESC`;
       let queryParams = [...params];
@@ -208,7 +279,36 @@ const ExpenseRepository = {
 
   // SUMMARY
   getSummary: async () => {
-    if (db.type === 'mysql') {
+    if (db.type === 'mongodb') {
+      const stats = await Expense.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalAmount: { $sum: '$amount' }
+          }
+        }
+      ]);
+
+      const catStats = await Expense.aggregate([
+        {
+          $group: {
+            _id: '$category',
+            total: { $sum: '$amount' }
+          }
+        }
+      ]);
+
+      const totalAmount = stats.length > 0 ? Math.round(stats[0].totalAmount * 100) / 100 : 0;
+      const categoryTotals = { Food: 0, Travel: 0, Shopping: 0, Other: 0 };
+
+      for (const item of catStats) {
+        if (item._id in categoryTotals) {
+          categoryTotals[item._id] = Math.round(item.total * 100) / 100;
+        }
+      }
+
+      return { totalAmount, categoryTotals };
+    } else if (db.type === 'mysql') {
       const [totalRows] = await db.pool.execute('SELECT COALESCE(SUM(amount), 0) as totalAmount FROM expenses');
       const totalAmount = Math.round(Number(totalRows[0]?.totalAmount || 0) * 100) / 100;
 
