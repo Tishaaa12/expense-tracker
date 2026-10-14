@@ -1,0 +1,219 @@
+{
+  "info": {
+    "name": "Expense Tracker Assignment API",
+    "_postman_id": "c1f73752-bfbc-4fa1-8ecb-99d63f0d4b9b",
+    "description": "Collection covering all required endpoints, queries, and test outputs for the Expense Tracker assignment.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Output 1 - Summary",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/api/expenses/summary",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "expenses", "summary"]
+        }
+      }
+    },
+    {
+      "name": "Output 2 - Filter by Category (Food)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/api/expenses?category=Food",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "expenses"],
+          "query": [
+            {
+              "key": "category",
+              "value": "Food"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Output 3 - Sort by Amount Descending",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/api/expenses?sortBy=amount&order=desc",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "expenses"],
+          "query": [
+            {
+              "key": "sortBy",
+              "value": "amount"
+            },
+            {
+              "key": "order",
+              "value": "desc"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Output 4 - Update Expense",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"amount\": 600\n}"
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/expenses/2",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "expenses", "2"]
+        }
+      }
+    },
+    {
+      "name": "Output 5 - Reject Invalid Amount",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"description\": \"Invalid Coffee\",\n  \"amount\": -500,\n  \"category\": \"Food\",\n  \"date\": \"2026-10-09\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/expenses",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "expenses"]
+        }
+      }
+    },
+    {
+      "name": "Output 6 - Search by Description",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/api/expenses?search=Uber",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "expenses"],
+          "query": [
+            {
+              "key": "search",
+              "value": "Uber"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Output 7 - Filter by Date Range",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/api/expenses?startDate=2026-10-09&endDate=2026-10-09",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "expenses"],
+          "query": [
+            {
+              "key": "startDate",
+              "value": "2026-10-09"
+            },
+            {
+              "key": "endDate",
+              "value": "2026-10-09"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Output 8 - Pagination",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/api/expenses?page=1&limit=2",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "expenses"],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "2"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Output 9 - Create Expense",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"description\": \"Coffee with team\",\n  \"amount\": 350,\n  \"category\": \"Food\",\n  \"date\": \"2026-10-10\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/expenses",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "expenses"]
+        }
+      }
+    },
+    {
+      "name": "Output 10 - Delete Expense",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/api/expenses/2",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "expenses", "2"]
+        }
+      }
+    }
+  ]
+}
