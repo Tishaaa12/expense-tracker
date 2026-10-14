@@ -214,6 +214,34 @@
           "path": ["api", "expenses", "2"]
         }
       }
+    },
+    {
+      "name": "Get Single Expense by ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/api/expenses/1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "expenses", "1"]
+        }
+      }
+    },
+    {
+      "name": "Utility - Reset Sample Data",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/api/expenses/reset-seed",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "expenses", "reset-seed"]
+        }
+      }
     }
   ]
 }
